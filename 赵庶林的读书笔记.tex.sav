@@ -1,0 +1,348 @@
+%要运行该模板，LaTex需要安装CJK库以支持汉字.
+%字体大小为12像素，文档类型为article
+%如果你要写论文，就用report代替article
+%所有LaTex文档开头必须使用这句话
+\documentclass[12pt]{article}
+
+%使用支持汉字的CJK包
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{graphics}
+\usepackage{graphicx}
+\usepackage{subfigure}
+\usepackage{CJK}
+\usepackage{algorithm}
+\usepackage{soul}
+\usepackage{algorithmic}
+\usepackage{enumerate}
+%开始CJK环境,只有在这句话之后,你才能使用汉字
+%另外,如果在Linux下,请将文件的编码格式设置成GBK
+%否则会显示乱码
+\begin{CJK*}{GBK}{song}
+\usepackage{xcolor}
+\usepackage{listings}
+%这是文章的标题
+\title{我的读书笔记}
+
+%这是文章的作者
+\author{zhaoshulin.cn@gmail.com}
+
+%这是文章的时间
+%如果没有这行将显示当前时间
+%如果不想显示时间则使用 \date{}
+%\date{2008/10/12}
+
+%以上部分叫做"导言区",下面才开始写正文
+\begin{document}
+
+%先插入标题
+\maketitle
+%再插入目录
+\tableofcontents
+
+%C语言格式设置：
+\lstset{numbers=left,
+keywordstyle=\bf\color{blue},
+numberstyle=\color[RGB]{0,192,192},
+commentstyle=\it\color[RGB]{0,96,96},
+ framexleftmargin=10mm,
+ frame=none,
+  stringstyle=\rmfamily\slshape\color[RGB]{128,0,0},
+ identifierstyle=\bf,
+    showstringspaces=false,
+ rulesepcolor=\color{red!20!green!20!blue!20},
+escapeinside=``}
+
+
+
+
+%正文开始：
+\section{《Linux内核设计的艺术》}
+\subsection{第一章：从开机加电到执行main函数之前的过程}
+\subsubsection{开机之后，从启动盘加载OS的三个步骤是？}
+\begin{enumerate}[(1)]
+\item 启动BIOS，准备实模式下的中断向量表和中断服务程序；
+\item 利用上一步的中断服务程序，从启动盘加载OS到内存；
+\item 为执行32位的main函数做过渡工作。
+\end{enumerate}
+
+\subsubsection{什么是实模式（Real Mode）？}
+实模式的特性是一个20位的存储器地址空间（$2^{20}=1048576$，即1MB的存储器可被寻址），可以直接软件访问BIOS以及周边硬件，没有硬件支持的分页机制和实时多任务概念。
+
+\subsubsection{BIOS的启动原理？}
+从硬件角度看，Intel 80x86 系列的CPU可以分别在16位实模式和32位保护模式下运行。为了解决最开始的启动问题，x86的cpu的硬件都设计为加电即进入16位实模式状态运行。在加电瞬间，强行将CS 置为0xF000，IP置为0xFFF0，这样，CS:IP=0xFFFF0，而BIOS程序的入口地址恰恰就是0xFFFF0。
+
+\subsubsection{BIOS最早对内存做了什么手脚？}
+\begin{enumerate}[(1)]
+\item 中断向量表
+\item BIOS数据区
+\item 中断服务程序
+\end{enumerate}
+
+\subsubsection{如何加载第一部分内核代码（boot sect）？}
+完成自检之后，体系结构与BIOS联手，会让CPU接收到一个int 0x19 中断，该中断的服务程序把0磁头0磁道1扇区中的bootsect.s复制到内存0x07C00 处。
+
+\subsubsection{如何加载第二部分内核代码（setup）？}
+\begin{enumerate}[(1)]
+\item 规划内存，设置SETUPLEN, SETUPSEG, BOOTSEG, INITSEG, INITSEG, SYSSEG, ENDSEG, ROOT\_DEV的内存位置；
+\item bootsect.s将自身从BOOTSEG（0x07c00）处复制到INITSEG(0x9000)处；
+\item 执行0x int 13中断，将setup.s加载到内存的SETUPSEG处。
+\end{enumerate}
+
+\subsubsection{如何加载第三部分内核代码（system模块）？}
+bootsect调用read\_it 子程序，将system模块加载到内存的SYSSEG处。
+
+\subsubsection{如何废除16位的中断机制？}
+先关中断（cli），然后将system模块从0x10000复制到0x0000处，覆盖掉了BIOS中断向量表和BIOS 数据区。
+
+这样做，一箭三雕：
+\begin{enumerate}[(1)]
+\item 废除BIOS的中断向量表，即废除了实模式下的中断服务程序；
+\item 回收刚刚结束使用寿命的程序所占用的内存空间；
+\item 让内核代码占据内存物理地址最开始的、天然的、有利的位置。
+\end{enumerate}
+
+\subsubsection{实现32位寻址的动作是？}
+打开A20，这样cpu即可以进行32位寻址，最大的寻址空间是4GB。
+
+\subsubsection{如何切换处理器的工作方式？}
+CR0寄存器的第0位是PE(Protected Mode Enable 保护模式使能标志)，置一时，保护模式；置零时，实模式。
+
+\subsubsection{如何跳转入main函数中？}
+先将main函数的执行入口地址\_main压栈，然后执行ret，pop出该地址到EIP中，即开始执行main函数了。
+
+\subsection{第二章：设备环境初始化及激活进程0}
+\subsubsection{系统通过mem\_map对1MB以上的内存分页进行管理，那为什么不对1MB以上的内存空间也采用同样的分页方法进行管理呢？}
+1MB以内是内核代码和只有由内核管理的大部分数据所在的内存空间，绝对不允许用户进程访问；1MB以上（特别是主内存区）主要是用户进程的代码、数据所在的内存空间。\newline
+所以，内核和用户进程的分页管理方法必须不同
+\begin{itemize}
+   \item 对于内核，线性地址==物理地址；
+   \item 对于用户进程，无法通过线性地址推算出物理地址。
+\end{itemize}
+这样，内核可以访问用户进程；而用户进程不能访问其他进程，更不能访问内核。
+\newline
+PS：嵌入汇编的方法：\textbf{\textcolor[rgb]{1.00,0.00,0.00}{\_\_asm\_\_ (汇编代码)}}
+
+\subsubsection{硬件初始化的大体过程？}
+\begin{enumerate}[(1)]
+\item 规划内存格局：\begin{itemize}
+   \item 主内存区
+   \item 缓冲区
+   \item 虚拟盘（Makefile可配置）
+   \end{itemize}
+\item 设置及初始化缓冲区：free\_list将buffer\_head链接成双向循环链表。
+\item 设置及初始化虚拟盘：虚拟盘的末端是主内存的始端。
+\item 初始化mem\_map：对内核和用户进程分别采用不同的分页管理方法。
+\item 初始化缓冲区管理结构：buffer\_head在低地址端；缓冲块在高地址端。start\_buffer=\&end;这个end 是内核代码末端的地址，因为有可能动态加载内核模块导致内核末端地址不固定，所以在内核模块链接期间设置这个end值。
+\end{enumerate}
+
+\subsubsection{与外设有关的初始化过程？}
+\begin{enumerate}[(1)]
+\item 设置根设备：即文件系统中的根目录，此时应该为装机时的linux .iso所在的光盘或硬盘。
+\item 初始化软盘、硬盘等。
+\end{enumerate}
+
+\subsubsection{为内核及用户进程的正确运行所做的初始化过程？}
+\begin{enumerate}[(1)]
+\item 中断服务的挂接：串口、显示器、键盘等。
+\item 初始化进程0：\begin{itemize}
+   \item 设置时钟中断，以便可以支持多进程轮流执行。
+   \item 设置系统调用总入口（system\_call），以便可以允许用户进程与内核交互。
+   \end{itemize}
+\end{enumerate}
+
+\subsubsection{如何激活进程0？}
+因为Linux OS规定，除了进程0以外，所有进程都要由一个已有进程在3特权级下创建。所以用防中断的方法将进程0的特权级由0翻转到3，实现激活进程0.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\section{《你必须知道的495个C语言问题》}
+\subsection{第一章：声明和初始化}
+\subsubsection{尽管unsigned char 型可以当成“小”整数使用，但这样做不值得，为什么？}
+因为编译器需要生成额外的代码来进行char型和int 型之间的转换，导致目标代码量变大；而且不可预知的符号扩展也会带来一些麻烦。
+
+\subsubsection{为什么不精确定义标准类型的大小？}
+对象的具体大小应该由具体的实现来决定。
+
+PS：在C语言中，唯一能够让你以二进制位的方式指定大小的地方是结构中的位域。
+
+\subsubsection{这样声明：char *p1, p2; 代表什么？}
+在C语言中，声明的语法是：“\textbf{\textcolor[rgb]{1.00,0.00,0.00}{基本类型 \  生成的基本类型的东西;}}”，所以，由上述代码，基本类型都是char型，而*p1表示生成的东西是一个指针；而p2表示生成的东西是一个普通变量。
+
+PS：写成"char* "是非常容易误导的，不要这样写！
+
+\subsubsection{怎样声明和定义全局变量和函数？}
+首先，
+\begin{lstlisting}[language={[ANSI]C}]
+extern int i;
+extern int f();
+\end{lstlisting}
+是声明；
+
+\begin{lstlisting}[language={[ANSI]C}]
+int i = 0;
+int f(){
+    return 0;
+}
+\end{lstlisting}
+是定义。
+
+即：全局变量的定义是真正分配空间（并赋初值）的声明；而全局函数的定义是提供函数体。
+
+最好的方法就是：外部声明在.h文件中；定义在.c文件中。
+
+\subsubsection{静态变量和静态函数的规则中有一个细微的区别，是什么？}
+参照http://c-faq.com/decl/static.jd.html
+\begin{figure}[H]
+\centering
+\scalebox{0.6}{\includegraphics{1.eps}}
+\caption{静态变量和静态函数的规则中的细微区别。}
+\label{fig1}
+\end{figure}
+为了便于我的理解，可以将internal linkage想象为恪守妇道的良家妇女属性，将external linkage想象为一入妓院深似海的东莞技工属性。先看第一个案例，你已经成了婊子了，就别再想着试图从良了，没希望；然后看第二个案例，对于变量想当妓女，会失败，但是函数不同，说白了函数就是给多数人用的，当妓女是它的使命，所以，函数下海是可行的；最后看第三个案例，要是你们俩都有强烈的愿望（加了extern）要当妓女，好，那就全部成全你俩！
+
+\subsubsection{如何理解char *(*(*a[])()) (); }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\end{CJK*}
+\end{document}

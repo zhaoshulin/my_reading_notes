@@ -1,0 +1,553 @@
+%要运行该模板，LaTex需要安装CJK库以支持汉字.
+%字体大小为12像素，文档类型为article
+%如果你要写论文，就用report代替article
+%所有LaTex文档开头必须使用这句话
+\documentclass[12pt]{article}
+
+%使用支持汉字的CJK包
+\usepackage{indentfirst}
+\usepackage{listings}
+\usepackage{amsmath}
+\usepackage{graphics}
+\usepackage{graphicx}
+\usepackage{subfigure}
+\usepackage{CJK}
+\usepackage{algorithm}
+\usepackage{soul}
+\usepackage{algorithmic}
+\usepackage{enumerate}
+%开始CJK环境,只有在这句话之后,你才能使用汉字
+%另外,如果在Linux下,请将文件的编码格式设置成GBK
+%否则会显示乱码
+\begin{CJK*}{GBK}{song}
+\usepackage{xcolor}
+\usepackage{listings}
+%这是文章的标题
+\title{我的读书笔记}
+
+%这是文章的作者
+\author{zhaoshulin.cn@gmail.com}
+
+%这是文章的时间
+%如果没有这行将显示当前时间
+%如果不想显示时间则使用 \date{}
+%\date{2008/10/12}
+
+%以上部分叫做"导言区",下面才开始写正文
+\begin{document}
+
+%先插入标题
+\maketitle
+%再插入目录
+\tableofcontents
+
+%C语言格式设置：
+\lstset{numbers=left,
+keywordstyle=\bf\color{blue},
+numberstyle=\color[RGB]{0,192,192},
+commentstyle=\it\color[RGB]{0,96,96},
+ framexleftmargin=10mm,
+ frame=none,
+  stringstyle=\rmfamily\slshape\color[RGB]{128,0,0},
+ identifierstyle=\bf,
+    showstringspaces=false,
+ rulesepcolor=\color{red!20!green!20!blue!20},
+escapeinside=``}
+
+
+
+
+%正文开始：
+\section{《Linux内核设计的艺术》}
+\subsection{第一章：从开机加电到执行main函数之前的过程}
+\subsubsection{开机之后，从启动盘加载OS的三个步骤是？}
+\begin{enumerate}[(1)]
+\item 启动BIOS，准备实模式下的中断向量表和中断服务程序；
+\item 利用上一步的中断服务程序，从启动盘加载OS到内存；
+\item 为执行32位的main函数做过渡工作。
+\end{enumerate}
+
+\subsubsection{什么是实模式（Real Mode）？}
+实模式的特性是一个20位的存储器地址空间（$2^{20}=1048576$，即1MB的存储器可被寻址），可以直接软件访问BIOS以及周边硬件，没有硬件支持的分页机制和实时多任务概念。
+
+\subsubsection{BIOS的启动原理？}
+从硬件角度看，Intel 80x86 系列的CPU可以分别在16位实模式和32位保护模式下运行。为了解决最开始的启动问题，x86的cpu的硬件都设计为加电即进入16位实模式状态运行。在加电瞬间，强行将CS 置为0xF000，IP置为0xFFF0，这样，CS:IP=0xFFFF0，而BIOS程序的入口地址恰恰就是0xFFFF0。
+
+\subsubsection{BIOS最早对内存做了什么手脚？}
+\begin{enumerate}[(1)]
+\item 中断向量表
+\item BIOS数据区
+\item 中断服务程序
+\end{enumerate}
+
+\subsubsection{如何加载第一部分内核代码（boot sect）？}
+完成自检之后，体系结构与BIOS联手，会让CPU接收到一个int 0x19 中断，该中断的服务程序把0磁头0磁道1扇区中的bootsect.s复制到内存0x07C00 处。
+
+\subsubsection{如何加载第二部分内核代码（setup）？}
+\begin{enumerate}[(1)]
+\item 规划内存，设置SETUPLEN, SETUPSEG, BOOTSEG, INITSEG, INITSEG, SYSSEG, ENDSEG, ROOT\_DEV的内存位置；
+\item bootsect.s将自身从BOOTSEG（0x07c00）处复制到INITSEG(0x9000)处；
+\item 执行0x int 13中断，将setup.s加载到内存的SETUPSEG处。
+\end{enumerate}
+
+\subsubsection{如何加载第三部分内核代码（system模块）？}
+bootsect调用read\_it 子程序，将system模块加载到内存的SYSSEG处。
+
+\subsubsection{如何废除16位的中断机制？}
+先关中断（cli），然后将system模块从0x10000复制到0x0000处，覆盖掉了BIOS中断向量表和BIOS 数据区。
+
+这样做，一箭三雕：
+\begin{enumerate}[(1)]
+\item 废除BIOS的中断向量表，即废除了实模式下的中断服务程序；
+\item 回收刚刚结束使用寿命的程序所占用的内存空间；
+\item 让内核代码占据内存物理地址最开始的、天然的、有利的位置。
+\end{enumerate}
+
+\subsubsection{实现32位寻址的动作是？}
+打开A20，这样cpu即可以进行32位寻址，最大的寻址空间是4GB。
+
+\subsubsection{如何切换处理器的工作方式？}
+CR0寄存器的第0位是PE(Protected Mode Enable 保护模式使能标志)，置一时，保护模式；置零时，实模式。
+
+\subsubsection{如何跳转入main函数中？}
+先将main函数的执行入口地址\_main压栈，然后执行ret，pop出该地址到EIP中，即开始执行main函数了。
+
+\subsection{第二章：设备环境初始化及激活进程0}
+\subsubsection{系统通过mem\_map对1MB以上的内存分页进行管理，那为什么不对1MB以上的内存空间也采用同样的分页方法进行管理呢？}
+1MB以内是内核代码和只有由内核管理的大部分数据所在的内存空间，绝对不允许用户进程访问；1MB以上（特别是主内存区）主要是用户进程的代码、数据所在的内存空间。\newline
+所以，内核和用户进程的分页管理方法必须不同
+\begin{itemize}
+   \item 对于内核，线性地址==物理地址；
+   \item 对于用户进程，无法通过线性地址推算出物理地址。
+\end{itemize}
+这样，内核可以访问用户进程；而用户进程不能访问其他进程，更不能访问内核。
+\newline
+PS：嵌入汇编的方法：\textbf{\textcolor[rgb]{1.00,0.00,0.00}{\_\_asm\_\_ (汇编代码)}}
+
+\subsubsection{硬件初始化的大体过程？}
+\begin{enumerate}[(1)]
+\item 规划内存格局：\begin{itemize}
+   \item 主内存区
+   \item 缓冲区
+   \item 虚拟盘（Makefile可配置）
+   \end{itemize}
+\item 设置及初始化缓冲区：free\_list将buffer\_head链接成双向循环链表。
+\item 设置及初始化虚拟盘：虚拟盘的末端是主内存的始端。
+\item 初始化mem\_map：对内核和用户进程分别采用不同的分页管理方法。
+\item 初始化缓冲区管理结构：buffer\_head在低地址端；缓冲块在高地址端。start\_buffer=\&end;这个end 是内核代码末端的地址，因为有可能动态加载内核模块导致内核末端地址不固定，所以在内核模块链接期间设置这个end值。
+\end{enumerate}
+
+\subsubsection{与外设有关的初始化过程？}
+\begin{enumerate}[(1)]
+\item 设置根设备：即文件系统中的根目录，此时应该为装机时的linux .iso所在的光盘或硬盘。
+\item 初始化软盘、硬盘等。
+\end{enumerate}
+
+\subsubsection{为内核及用户进程的正确运行所做的初始化过程？}
+\begin{enumerate}[(1)]
+\item 中断服务的挂接：串口、显示器、键盘等。
+\item 初始化进程0：\begin{itemize}
+   \item 设置时钟中断，以便可以支持多进程轮流执行。
+   \item 设置系统调用总入口（system\_call），以便可以允许用户进程与内核交互。
+   \end{itemize}
+\end{enumerate}
+
+\subsubsection{如何激活进程0？}
+因为Linux OS规定，除了进程0以外，所有进程都要由一个已有进程在3特权级下创建。所以用防中断的方法将进程0的特权级由0翻转到3，实现激活进程0.
+
+\subsection{第三章：进程1的创建及执行}
+PS：C语言的sys\_fork对应于汇编的\_sys\_fork。
+\subsubsection{进程0创建进程1的大体步骤？}
+\begin{enumerate}[(1)]
+\item 进程0 fork()进程1；
+\item 在 task[64] 中为进程1申请一个空闲位置并获取进程号；
+\item 调用 copy\_process 函数，以便使进程1 可以就绪；
+\item 设置进程1的分页管理；
+\item 进程1共享进程0的文件；
+\item 设置进程1在GDT中的表项；
+\item 使进程1处于就绪状态：$p->state = TASK\_RUNNING;$
+\end{enumerate}
+
+\subsubsection{内核第一次做进程调度，即从进程0到进程1的过程？}
+进程0执行到 for(;;) pause(); 进入 pause()之后执行到schedule(); 在 schedule()函数中，先分析当前有没有必要进行进程切换，如果有必要，再进行具体的切换操作。
+\begin{enumerate}[(1)]
+\item 首先根据task[64]这个结构，第一次遍历所有的进程，只要地址指针不为空，就要针对它们的"alarm"和"signal"进行处理。In this case, 因为进程0此时并未收到任何信号，并且它的状态是"TASK\_INTERRUPTIBLE"，不可能转变为"TASK\_RUNNING"，所以这次遍历的处理过程没有具体效果。
+\item 第二次遍历所有的进程，比较进程的状态和时间片，找出处于就绪态且counter最大的进程。In this case, 因为目前只有进程0和1，只有进程1处于"TASK\_RUNNING"，所以，执行switch\_to(next)，切换到进程1 执行。
+    \end{enumerate}
+
+\subsubsection{进程1如何加载根文件系统？}
+加载文件系统最重要的标志，就是把一个逻辑设备上的文件系统的根i节点，关联到另一个文件系统的i 节点上（即mount命令）。
+
+有一个问题：别的文件系统可以挂在根文件系统上，那么根文件系统挂在哪里呢？\textcolor[rgb]{1.00,0.00,0.00}{\textbf{super\_block[8]}} 上。
+
+所以，加载根文件系统最重要的标志，就是把根文件系统的根i节点挂在super\_block[8]中根设备对应的超级块上。
+
+具体过程为：
+\begin{enumerate}[(1)]
+\item 复制根设备的超级块到super\_block[8] 中，将根设备中的根i节点挂在super\_block[8]中对应根设备的超级块上。
+\item 将驻留缓冲区中16个缓冲块的根设备逻辑块位图、i节点位图分别挂接在super\_block[8] 中根设备超级块的s\_zmap[8]、s\_imap[8] 上。
+\item 将进程1的pwd、root指针指向根设备的根i 节点。
+\end{enumerate}
+
+\subsection{第四章：进程2的创建以及执行}
+\subsubsection{简述打开终端设备文件的过程？}
+\begin{enumerate}[(1)]
+\item 通过open()函数创建标准输入设备文件："/dev/tty0"
+\item 通过两次复制文件句柄(dup()函数)创建标准输出、标准错误输出设备文件
+\end{enumerate}
+
+\subsubsection{简述进程1创建进程2并切换到进程2执行的过程？}
+\begin{enumerate}[(1)]
+\item 进程1调用fork，映射到sys\_fork，调用find\_empty\_process()函数，为进程2寻找空闲的task，之后调用copy\_process()复制进程；
+\item 进程2创建完毕后，fork返回，∵返回值是2，∴$!(pid = fork())$为假，∴调用wait()函数，wait()函数的功能是：\begin{enumerate}
+                        \item 如果进程1有等待退出的子进程，则为该子进程的退出做善后工作；
+                        \item 如果进程1有子进程，但并不等待退出，则进行进程切换；
+                        \item 如果没有子进程，函数返回。
+                        \end{enumerate}
+wait()函数最终会映射到系统调用函数sys\_waitpid()中执行，该函数遍历所有的进程，以便确定哪个进程是进程1 的子进程，此时进程2即被选中了；再对进程2进行分析，∵进程2此时是就绪态，并不准备退出，∴设置flag标志为1，该标志将导致进程切换。
+\item 进入$if(flag)$ 去执行，内核先将进程1的状态设置为可中断等待状态，之后调用schedule()切换到进程2去执行。
+\end{enumerate}
+
+\subsubsection{简述加载shell程序的过程？}
+\begin{enumerate}[(1)]
+\item 关闭标准输入设备文件，打开rc文件。\newline PS：rc文件是脚本文件，该文件记录着一些命令，应用程序通过解析这些命令来确定执行命令（run commands）。
+\item 检测shell文件，以便确定shell程序是否具备加载条件。
+\item 为shell程序的执行做准备。\begin{itemize}
+                                                \item 加载参数和环境变量
+                                                \item 调整进程2的管理结构
+                                                \item 调整EIP和ESP：用shell程序的起始地址值设置EIP；用进程2新的栈顶地址值设置ESP，这样，软中断itet返回之后，进程2就将从shell程序开始执行。
+                                                    \end{itemize}
+\item 执行shell程序。\begin{itemize}
+                                                \item 通过“缺页中断”处理程序，加载第一页的shell程序
+                                                \item 内核将该加载页映射到shell进程的线性地址空间中
+                                                \end{itemize}
+\end{enumerate}
+
+\subsubsection{update的进程号是？}
+∵shell进程的进程号是2，并且由shell进程通过"/etc/rc"脚本中读取"/etc/update \&" 命令创建了update进程，∴update的进程号是3.\newline PS：update进程有一项很重要的任务：将缓冲区中的数据同步到外设上。每隔一段时间，update进程就会被唤醒，把数据往外设上同步一次，之后这个进程就会被挂起，即被设置为可中断等待状态，等待着下一次被唤醒后继续执行，如此周而复始。
+
+\subsubsection{简述shell的退出过程？}
+∵shell程序循环调用read()函数读取rc文件中的内容，∴总会有读取结束的时刻，此时返回值应为\_ERROR，这个返回值将导致shell进程退出，给进程1发送SIGCHLD信号，导致切换到进程1执行。
+
+\subsubsection{简述重建shell以致实现系统怠速的过程？}
+进程1通过调用fork()函数重启shell进程（∴shell进程的PID依然是2），∵此次shell重新打开的是tty0文件而不是rc文件，∴此次shell开始执行之后不会再退出。\newline shell进程将被设置为可中断等待状态，这样所有的进程全部都处于可中断等待状态，再次切换到进程0去执行，系统实现怠速。怠速之后，用户即可通过shell进程与计算机进行交互了。
+
+\subsection{第五章：文件操作}
+\subsubsection{简述安装文件系统的过程？(mount)}
+∵OS已经成功加载了根文件系统，∴OS能够以文件的形式与根设备进行数据交互。\newline PS：安装文件系统，就是在根文件系统的基础上，把硬盘中的文件系统安装在根文件系统上，使得OS也具备以文件的形式与硬盘进行数据交互的能力。在shell下输入“\textcolor[rgb]{0.00,0.00,1.00}{\textbf{mount /dev/hd1   /mnt}}”来安装文件系统。\newline 具体的过程如下：
+\begin{itemize}
+        \item 获取外设的超级块
+        \item 确定根文件系统的挂接点
+        \item 将超级块与根文件系统挂接
+\end{itemize}
+
+\subsubsection{简述打开文件的过程？(open)}
+首先要知道三个数据结构：
+\begin{itemize}
+        \item *filp[20]：管理一个进程可以打开的文件；
+        \item file\_table[64]：管理所有进程可以打开的文件；
+        \item inode\_table[32]：管理正在使用的文件的i节点。\ \textcolor[rgb]{0.50,0.50,0.50}{\emph{\textbf{注意：在OS中，i节点和文件是一一对应的，找到i节点就能唯一确定文件。}}}
+\end{itemize}
+打开文件的关系示意图如图\ref{fig2}所示：
+\begin{figure}[H]
+\centering
+\scalebox{0.49}{\includegraphics{2.eps}}
+\caption{打开文件的关系示意图。}
+\label{fig2}
+\end{figure}
+打开文件需要三个步骤：
+\begin{enumerate}[(1)]
+\item 将进程的*filp[20]与file\_table[64]挂接，目的是label某一个确定的用户进程；
+\item 获取文件i节点，载入到inode\_table[32]中，目的是label该文件要被进行打开操作啦；
+\item 将inode\_table[32]与file\_table[64]挂接，此时file\_table[64]中的挂接点，一端与当前进程的*filp[20]指针绑定，另一端与inode\_table[32]中特定的文件的i节点绑定。
+\end{enumerate}
+在绑定关系建立之后，OS把fd返回给用户进程，这个fd是挂接点在file\_table[64]中的偏移量，即所谓的“文件句柄”。
+
+\subsubsection{简述读文件的过程？(read)}
+\begin{enumerate}[(1)]
+\item 通过调用bmp()确定指定的文件数据块在外设上的逻辑块号；
+\item 通过调用bread()将数据块读入缓冲块中；
+\item 通过调用file\_read()将缓冲块中的数据复制到进程空间中。
+\end{enumerate}
+
+\subsubsection{简述新建文件的过程？(create)}
+\begin{enumerate}[(1)]
+\item 查找文件，∵是要被新建的文件，∴此时该文件并不存在，∴无法查找到该文件，bh值将被设为NULL。
+\item 新建文件i节点：new\_inode()函数执行新建i节点的步骤分为两步：\begin{enumerate}
+                \item 要在i节点位图中，对新建i节点对应的位予以标示；
+                \item 要将i节点的部分属性信息载入inode\_table[32]表中指定的表项。
+                \end{enumerate}
+\item 新建文件目录项：查找空目录项并添加目录数据。
+\end{enumerate}
+
+\subsubsection{简述写文件的过程？(write)}
+\begin{itemize}
+        \item 确定文件的写入位置：用户进程传递的flags参数，决定了文件的数据写入位置。一个新的数据块的具体创建工作包含两部分：\begin{enumerate}[(1)]
+                            \item 将新建的数据块对应的逻辑块位图置一；
+                            \item 在缓冲区中为新建的数据块申请缓冲块，用以承载写入的内容。
+                            \end{enumerate}
+            \item 申请缓冲块
+            \item 将指定的数据从进程空间复制到缓冲块
+            \item 将数据从缓冲区同步到外设：有两种情况：\begin{enumerate}[(1)]
+                            \item update定期同步
+                            \item 因缓冲区使用达到极限，OS就会强行同步
+                            \end{enumerate}
+\end{itemize}
+
+\subsubsection{简述修改文件的过程？(write)}
+\begin{enumerate}[(1)]
+                            \item 调用lseek()函数重定位文件的当前操作指针
+                            \item 修改文件
+\end{enumerate}
+
+\subsubsection{简述关闭文件的过程？(close)}
+\begin{enumerate}[(1)]
+                            \item 当前进程的filp与file\_table[64]脱钩
+                            \item 文件i节点被释放
+\end{enumerate}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\section{《你必须知道的495个C语言问题》}
+\subsection{第一章：声明和初始化}
+\subsubsection{尽管unsigned char 型可以当成“小”整数使用，但这样做不值得，为什么？}
+因为编译器需要生成额外的代码来进行char型和int 型之间的转换，导致目标代码量变大；而且不可预知的符号扩展也会带来一些麻烦。
+
+\subsubsection{为什么不精确定义标准类型的大小？}
+对象的具体大小应该由具体的实现来决定。
+
+PS：在C语言中，唯一能够让你以二进制位的方式指定大小的地方是结构中的位域。
+
+\subsubsection{这样声明：char *p1, p2; 代表什么？}
+在C语言中，声明的语法是：“\textbf{\textcolor[rgb]{1.00,0.00,0.00}{基本类型 \  生成的基本类型的东西;}}”，所以，由上述代码，基本类型都是char型，而*p1表示生成的东西是一个指针；而p2表示生成的东西是一个普通变量。
+
+PS：写成"char* "是非常容易误导的，不要这样写！
+
+\subsubsection{怎样声明和定义全局变量和函数？}
+首先，
+\begin{lstlisting}[language={[ANSI]C}]
+extern int i;
+extern int f();
+\end{lstlisting}
+是声明；
+
+\begin{lstlisting}[language={[ANSI]C}]
+int i = 0;
+int f(){
+    return 0;
+}
+\end{lstlisting}
+是定义。
+
+即：全局变量的定义是真正分配空间（并赋初值）的声明；而全局函数的定义是提供函数体。
+
+最好的方法就是：外部声明在.h文件中；定义在.c文件中。
+
+\subsubsection{静态变量和静态函数的规则中有一个细微的区别，是什么？}
+参照http://c-faq.com/decl/static.jd.html，如图\ref{fig1}：
+\begin{figure}[H]
+\centering
+\scalebox{0.6}{\includegraphics{1.eps}}
+\caption{静态变量和静态函数的规则中的细微区别。}
+\label{fig1}
+\end{figure}
+为了便于我的理解，可以将internal linkage想象为恪守妇道的良家妇女属性，将external linkage想象为一入妓院深似海的东莞技工属性。先看第一个案例，你已经成了婊子了，就别再想着试图从良了，没希望；然后看第二个案例，对于变量想当妓女，会失败，但是函数不同，说白了函数就是给多数人用的，当妓女是它的使命，所以，函数下海是可行的；最后看第三个案例，要是你们俩都有强烈的愿望（加了extern）要当妓女，好，那就全部成全你俩！
+
+\subsubsection{如何理解char *(*(*a[])()) (); 这句话？}
+可以使用typedef逐步完成声明：
+\begin{lstlisting}[language={[ANSI]C}]
+typedef char *pc;
+typedef pc fpc();
+typedef fpc *pfpc;
+typedef pfpc fpfpc();
+typedef fpfpc *pfpfpc;
+pfpfpc a[N];
+\end{lstlisting}
+
+\subsubsection{C语言的三种连接类型是？}
+\begin{itemize}
+   \item 外部连接：全局、非静态变量和函数（在所有的源文件中有效）
+    \item 内部连接：限于文件作用域内的静态函数和变量
+    \item 无连接：局部变量及typedef名称和枚举变量
+    \end{itemize}
+
+\subsubsection{尚未初始化的初始值是？}
+\begin{itemize}
+   \item static：可以确保初始值为零
+   \item automatic：垃圾内容
+   \item malloc和realloc动态分配的内存包含垃圾内容
+   \item calloc获得的内存全为零
+   \end{itemize}
+
+\subsubsection{如何初始化一个函数指针？}
+\begin{lstlisting}[language={[ANSI]C}]
+extern int func();
+int (*pf)() = func;
+\end{lstlisting}
+当一个函数名(func)出现在上述表达式中时，它会“退化”成一个指针（即隐式地取出了它的地址）。
+
+\subsection{第二章：结构、联合和枚举}
+\subsubsection{用struct x1 {...};声明之后如何定义？用typedef struct x2 {...} x2; 声明之后如何定义？}
+用struct x1 {...};声明之后如何定义？ \textbf{struct x1 a;}
+
+用typedef struct x2 {...} x2; 声明之后如何定义？ \textbf{x2 b;}
+
+\subsubsection{怎样从/向文件读/写一个结构？}
+\begin{lstlisting}[language={[ANSI]C}]
+fwrite(&somestruct, sizeof(struct somestruct), 1, filepointer);
+fread(&somestruct, sizeof(struct somestruct), 1, filepointer);
+\end{lstlisting}
+
+\subsubsection{为什么sizeof返回值有可能大于期望值？}
+因为在按字节寻址的机器中，2字节的short int 型变量必须放在偶地址上，4字节的long int 型变量必须放在4的整倍数地址上等，所以，编译器为了保证对齐要求，有可能会留出空洞，正是这些空洞的存在导致了sizeof返回值大于期望值。
+
+\subsubsection{如何求出一个域（f）在结构（s）中的字节偏移量？}
+使用offsetof(struct s, f)这个函数即可。深入下去：
+\begin{lstlisting}[language={[ANSI]C}]
+#define offsetof(type, f) ((size_t) \
+   ((char *) &((type *)0 -> f) - (char *) (type *)0 ) );
+\end{lstlisting}
+总体思路还是：f的字节地址减去结构体的首地址。其中，转换成(char *) 指针可以确保算出的偏移是字节偏移。
+
+\subsubsection{既然数组名可以用作数组的基地址，为什么对结构不能这样？}
+∵数组在c语言中处于“二级”状态，∴数组引用可以“退化”为指针。\newline
+但∵结构是一级对象，∴当你提到结构的时候，你得到的是整个结构。∴最好使用指针而不是直接使用结构。
+
+\subsubsection{结构和联合有什么区别？}
+联合本质上是一个成员相互重叠的结构，某一时刻只能使用一个成员。联合的大小是它最大成员的大小，而结构的大小是它所有成员大小之和。
+
+\subsubsection{如何自动跟踪联合的哪个域在使用？}
+可以自己实现一个显式带标签的联合：
+\begin{lstlisting}[language={[ANSI]C}]
+struct tagged_union{
+    enum{UNKNOWN, INT, LONG, DOUBLE, POINTER}code;
+    union{
+        int i;
+        long l;
+        double d;
+        void *p;
+    }u;
+};
+\end{lstlisting}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\end{CJK*}
+\end{document}

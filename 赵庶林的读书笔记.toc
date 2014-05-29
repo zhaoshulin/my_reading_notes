@@ -1,0 +1,68 @@
+\contentsline {section}{\numberline {1}《Linux内核设计的艺术》}{3}
+\contentsline {subsection}{\numberline {1.1}第一章：从开机加电到执行main函数之前的过程}{3}
+\contentsline {subsubsection}{\numberline {1.1.1}开机之后，从启动盘加载OS的三个步骤是？}{3}
+\contentsline {subsubsection}{\numberline {1.1.2}什么是实模式（Real Mode）？}{3}
+\contentsline {subsubsection}{\numberline {1.1.3}BIOS的启动原理？}{4}
+\contentsline {subsubsection}{\numberline {1.1.4}BIOS最早对内存做了什么手脚？}{4}
+\contentsline {subsubsection}{\numberline {1.1.5}如何加载第一部分内核代码（boot sect）？}{4}
+\contentsline {subsubsection}{\numberline {1.1.6}如何加载第二部分内核代码（setup）？}{4}
+\contentsline {subsubsection}{\numberline {1.1.7}如何加载第三部分内核代码（system模块）？}{4}
+\contentsline {subsubsection}{\numberline {1.1.8}如何废除16位的中断机制？}{4}
+\contentsline {subsubsection}{\numberline {1.1.9}实现32位寻址的动作是？}{5}
+\contentsline {subsubsection}{\numberline {1.1.10}如何切换处理器的工作方式？}{5}
+\contentsline {subsubsection}{\numberline {1.1.11}如何跳转入main函数中？}{5}
+\contentsline {subsection}{\numberline {1.2}第二章：设备环境初始化及激活进程0}{5}
+\contentsline {subsubsection}{\numberline {1.2.1}系统通过mem\_map对1MB以上的内存分页进行管理，那为什么不对1MB以上的内存空间也采用同样的分页方法进行管理呢？}{5}
+\contentsline {subsubsection}{\numberline {1.2.2}硬件初始化的大体过程？}{5}
+\contentsline {subsubsection}{\numberline {1.2.3}与外设有关的初始化过程？}{6}
+\contentsline {subsubsection}{\numberline {1.2.4}为内核及用户进程的正确运行所做的初始化过程？}{6}
+\contentsline {subsubsection}{\numberline {1.2.5}如何激活进程0？}{6}
+\contentsline {subsection}{\numberline {1.3}第三章：进程1的创建及执行}{6}
+\contentsline {subsubsection}{\numberline {1.3.1}进程0创建进程1的大体步骤？}{7}
+\contentsline {subsubsection}{\numberline {1.3.2}内核第一次做进程调度，即从进程0到进程1的过程？}{7}
+\contentsline {subsubsection}{\numberline {1.3.3}进程1如何加载根文件系统？}{7}
+\contentsline {subsection}{\numberline {1.4}第四章：进程2的创建以及执行}{8}
+\contentsline {subsubsection}{\numberline {1.4.1}简述打开终端设备文件的过程？}{8}
+\contentsline {subsubsection}{\numberline {1.4.2}简述进程1创建进程2并切换到进程2执行的过程？}{8}
+\contentsline {subsubsection}{\numberline {1.4.3}简述加载shell程序的过程？}{9}
+\contentsline {subsubsection}{\numberline {1.4.4}update的进程号是？}{9}
+\contentsline {subsubsection}{\numberline {1.4.5}简述shell的退出过程？}{9}
+\contentsline {subsubsection}{\numberline {1.4.6}简述重建shell以致实现系统怠速的过程？}{10}
+\contentsline {subsection}{\numberline {1.5}第五章：文件操作}{10}
+\contentsline {subsubsection}{\numberline {1.5.1}简述安装文件系统的过程？(mount)}{10}
+\contentsline {subsubsection}{\numberline {1.5.2}简述打开文件的过程？(open)}{10}
+\contentsline {subsubsection}{\numberline {1.5.3}简述读文件的过程？(read)}{12}
+\contentsline {subsubsection}{\numberline {1.5.4}简述新建文件的过程？(create)}{12}
+\contentsline {subsubsection}{\numberline {1.5.5}简述写文件的过程？(write)}{12}
+\contentsline {subsubsection}{\numberline {1.5.6}简述修改文件的过程？(write)}{13}
+\contentsline {subsubsection}{\numberline {1.5.7}简述关闭文件的过程？(close)}{13}
+\contentsline {section}{\numberline {2}《你必须知道的495个C语言问题》}{13}
+\contentsline {subsection}{\numberline {2.1}第一章：声明和初始化}{13}
+\contentsline {subsubsection}{\numberline {2.1.1}尽管unsigned char 型可以当成“小”整数使用，但这样做不值得，为什么？}{13}
+\contentsline {subsubsection}{\numberline {2.1.2}为什么不精确定义标准类型的大小？}{13}
+\contentsline {subsubsection}{\numberline {2.1.3}这样声明：char *p1, p2; 代表什么？}{14}
+\contentsline {subsubsection}{\numberline {2.1.4}怎样声明和定义全局变量和函数？}{14}
+\contentsline {subsubsection}{\numberline {2.1.5}静态变量和静态函数的规则中有一个细微的区别，是什么？}{14}
+\contentsline {subsubsection}{\numberline {2.1.6}如何理解char *(*(*a[])()) (); 这句话？}{15}
+\contentsline {subsubsection}{\numberline {2.1.7}C语言的三种连接类型是？}{15}
+\contentsline {subsubsection}{\numberline {2.1.8}尚未初始化的初始值是？}{15}
+\contentsline {subsubsection}{\numberline {2.1.9}如何初始化一个函数指针？}{15}
+\contentsline {subsection}{\numberline {2.2}第二章：结构、联合和枚举}{16}
+\contentsline {subsubsection}{\numberline {2.2.1}用struct x1 {...};声明之后如何定义？用typedef struct x2 {...} x2; 声明之后如何定义？}{16}
+\contentsline {subsubsection}{\numberline {2.2.2}怎样从/向文件读/写一个结构？}{16}
+\contentsline {subsubsection}{\numberline {2.2.3}为什么sizeof返回值有可能大于期望值？}{16}
+\contentsline {subsubsection}{\numberline {2.2.4}如何求出一个域（f）在结构（s）中的字节偏移量？}{16}
+\contentsline {subsubsection}{\numberline {2.2.5}既然数组名可以用作数组的基地址，为什么对结构不能这样？}{16}
+\contentsline {subsubsection}{\numberline {2.2.6}结构和联合有什么区别？}{17}
+\contentsline {subsubsection}{\numberline {2.2.7}如何自动跟踪联合的哪个域在使用？}{17}
+\contentsline {subsection}{\numberline {2.3}第三章：表达式}{17}
+\contentsline {subsubsection}{\numberline {2.3.1}下面的代码可以不需要临时变量就能交换a和b的值，分析下？}{17}
+\contentsline {subsubsection}{\numberline {2.3.2}为何如下的代码不对？}{17}
+\contentsline {subsubsection}{\numberline {2.3.3}“无符号保护”和“值保护”的区别？}{17}
+\contentsline {subsection}{\numberline {2.4}第四章：指针}{18}
+\contentsline {subsubsection}{\numberline {2.4.1}已声明了一个指针：char *p; 那么，如何为它分配一些内存空间？如何为这些内存赋值？}{18}
+\contentsline {subsubsection}{\numberline {2.4.2}下面的代码错在哪里？}{18}
+\contentsline {subsubsection}{\numberline {2.4.3}c语言如何模拟“按引用传参”？}{18}
+\contentsline {subsubsection}{\numberline {2.4.4}解释一下“通用对象指针”和“通用函数指针”？}{19}
+\contentsline {subsubsection}{\numberline {2.4.5}已有一个函数：extern f(int *); 它接受指向int型的指针。如何传入一个常量5？}{19}
+\contentsline {subsubsection}{\numberline {2.4.6}根据如下代码，可知fp是一个函数指针。如何用指针调用该函数？}{19}
